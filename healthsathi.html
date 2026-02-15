@@ -1,0 +1,1451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthSathi - Interactive Prototype</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00A86B;
+            --primary-dark: #008556;
+            --secondary: #FF6B35;
+            --accent: #4ECDC4;
+            --warning: #FFA500;
+            --danger: #E63946;
+            --bg: #F8F9FA;
+            --surface: #FFFFFF;
+            --text: #1A1A1A;
+            --text-light: #666666;
+            --border: #E0E0E0;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Lexend', 'Noto Sans Devanagari', sans-serif;
+            background: linear-gradient(135deg, #E8F5E9 0%, #FFF3E0 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .prototype-container {
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: #1A1A1A;
+            border-radius: 40px;
+            padding: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 30px;
+            background: #1A1A1A;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen-content {
+            height: 100%;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 12px;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 20px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .language-selector {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 12px;
+            border-radius: 20px;
+            display: inline-flex;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .lang-option {
+            padding: 4px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .lang-option.active {
+            background: white;
+            color: var(--primary);
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: var(--text-light);
+            line-height: 1.5;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(0, 168, 107, 0.05) 0%, rgba(0, 168, 107, 0.1) 100%);
+        }
+
+        .action-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .action-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 20px;
+            border-radius: 0 0 30px 30px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: var(--text-light);
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .symptom-checker {
+            background: linear-gradient(135deg, #FF6B35 0%, #E63946 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .symptom-checker h2 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .voice-btn {
+            background: white;
+            color: var(--secondary);
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            width: 100%;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .voice-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .alert {
+            background: #FFF3E0;
+            border-left: 4px solid var(--warning);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .alert-icon {
+            font-size: 20px;
+        }
+
+        .alert-text {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: var(--text);
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(0, 168, 107, 0.05);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 168, 107, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .symptom-tag {
+            display: inline-block;
+            background: #E8F5E9;
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin: 4px;
+            font-weight: 500;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .severity-high {
+            background: #FFEBEE;
+            color: var(--danger);
+        }
+
+        .severity-medium {
+            background: #FFF3E0;
+            color: var(--warning);
+        }
+
+        .severity-low {
+            background: #E8F5E9;
+            color: var(--primary);
+        }
+
+        .medicine-upload {
+            border: 2px dashed var(--primary);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .medicine-upload:hover {
+            background: rgba(0, 168, 107, 0.05);
+            border-color: var(--primary-dark);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .facility-list {
+            margin-top: 20px;
+        }
+
+        .facility-item {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .facility-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .facility-info {
+            font-size: 13px;
+            color: var(--text-light);
+            margin: 4px 0;
+        }
+
+        .distance {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .screen-selector {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .screen-selector h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .screen-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .screen-btn {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .screen-btn:hover {
+            border-color: var(--primary);
+            background: rgba(0, 168, 107, 0.05);
+        }
+
+        .screen-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .chat-message {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .message-bot {
+            flex-direction: row;
+        }
+
+        .message-user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .message-user .message-avatar {
+            background: var(--secondary);
+        }
+
+        .message-bubble {
+            background: var(--surface);
+            padding: 12px 16px;
+            border-radius: 16px;
+            max-width: 75%;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .message-user .message-bubble {
+            background: var(--primary);
+            color: white;
+        }
+
+        .message-text {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .quick-reply {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .reply-chip {
+            background: var(--surface);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reply-chip:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(0, 168, 107, 0.1) 0%, rgba(0, 168, 107, 0.05) 100%);
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .camera-preview {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
+        }
+
+        .capture-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid var(--primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .capture-btn:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="prototype-container">
+        <div class="phone-frame">
+            <div class="notch"></div>
+            <div class="screen">
+                <!-- Home Screen -->
+                <div id="screen-home" class="screen-view">
+                    <div class="status-bar">
+                        <div>9:41</div>
+                        <div>📶 🔋</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>नमस्ते 🙏</h1>
+                            <p>आपका स्वागत है, HealthSathi में</p>
+                            <div class="language-selector">
+                                <div class="lang-option active">हिंदी</div>
+                                <div class="lang-option">English</div>
+                                <div class="lang-option">தமிழ்</div>
+                            </div>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="alert">
+                                <div class="alert-icon">⚠️</div>
+                                <div class="alert-text">
+                                    यह सिर्फ जानकारी देता है। गंभीर लक्षणों के लिए तुरंत डॉक्टर से संपर्क करें।
+                                </div>
+                            </div>
+
+                            <div class="symptom-checker">
+                                <h2>लक्षण जांच</h2>
+                                <p style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">अपनी तबीयत के बारे में बताएं</p>
+                                <button class="voice-btn" onclick="showScreen('symptom-checker')">
+                                    <span style="font-size: 24px;">🎤</span>
+                                    अपनी आवाज़ में बताएं
+                                </button>
+                            </div>
+
+                            <div class="quick-actions">
+                                <div class="action-btn" onclick="showScreen('medicine-scan')">
+                                    <div class="action-icon">💊</div>
+                                    <div class="action-label">दवाई पहचानें</div>
+                                </div>
+                                <div class="action-btn" onclick="showScreen('find-hospital')">
+                                    <div class="action-icon">🏥</div>
+                                    <div class="action-label">अस्पताल खोजें</div>
+                                </div>
+                                <div class="action-btn" onclick="showScreen('emergency')">
+                                    <div class="action-icon">🚨</div>
+                                    <div class="action-label">आपातकालीन</div>
+                                </div>
+                                <div class="action-btn" onclick="showScreen('health-tips')">
+                                    <div class="action-icon">📚</div>
+                                    <div class="action-label">स्वास्थ्य टिप्स</div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">🩺 आज का स्वास्थ्य टिप</div>
+                                <div class="card-desc">साफ पानी पीएं और हाथ धोते रहें। डेंगू और मलेरिया से बचाव के लिए मच्छरों से सुरक्षा जरूरी है।</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bottom-nav">
+                        <div class="nav-item active">
+                            <div class="nav-icon">🏠</div>
+                            <div class="nav-label">होम</div>
+                        </div>
+                        <div class="nav-item" onclick="showScreen('history')">
+                            <div class="nav-icon">📋</div>
+                            <div class="nav-label">इतिहास</div>
+                        </div>
+                        <div class="nav-item" onclick="showScreen('asha-dashboard')">
+                            <div class="nav-icon">👩‍⚕️</div>
+                            <div class="nav-label">ASHA</div>
+                        </div>
+                        <div class="nav-item">
+                            <div class="nav-icon">⚙️</div>
+                            <div class="nav-label">सेटिंग्स</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Symptom Checker Screen -->
+                <div id="screen-symptom-checker" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>लक्षण जांच</h1>
+                            <p>अपनी तकलीफ के बारे में बताएं</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="chat-message message-bot">
+                                <div class="message-avatar">🤖</div>
+                                <div class="message-bubble">
+                                    <div class="message-text">नमस्ते! मैं आपकी मदद करूंगा। आपको क्या तकलीफ है?</div>
+                                    <div class="quick-reply">
+                                        <div class="reply-chip">बुखार</div>
+                                        <div class="reply-chip">सिर दर्द</div>
+                                        <div class="reply-chip">पेट दर्द</div>
+                                        <div class="reply-chip">खांसी</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="chat-message message-user">
+                                <div class="message-avatar">आप</div>
+                                <div class="message-bubble">
+                                    <div class="message-text">मुझे 3 दिन से बुखार है और सिर में दर्द है</div>
+                                </div>
+                            </div>
+
+                            <div class="chat-message message-bot">
+                                <div class="message-avatar">🤖</div>
+                                <div class="message-bubble">
+                                    <div class="message-text">समझा। कुछ और सवाल:</div>
+                                    <div class="quick-reply" style="margin-top: 12px;">
+                                        <div class="reply-chip">बुखार कितना है?</div>
+                                    </div>
+                                    <div class="quick-reply">
+                                        <div class="reply-chip">100°F से कम</div>
+                                        <div class="reply-chip">100-102°F</div>
+                                        <div class="reply-chip">102°F से ज्यादा</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button class="voice-btn">
+                                <span style="font-size: 24px;">🎤</span>
+                                बोलने के लिए दबाएं
+                            </button>
+
+                            <button class="btn-primary" onclick="showScreen('symptom-result')" style="margin-top: 12px;">
+                                परिणाम देखें
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Symptom Result Screen -->
+                <div id="screen-symptom-result" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('symptom-checker')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>आपकी रिपोर्ट</h1>
+                            <p>लक्षणों के आधार पर सुझाव</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="card" style="border-left: 4px solid var(--warning);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <div class="card-title">⚠️ सावधानी बरतें</div>
+                                    <div class="severity-badge severity-medium">मध्यम</div>
+                                </div>
+                                <div class="card-desc" style="margin-bottom: 12px;">
+                                    आपके लक्षण वायरल फीवर या डेंगू की ओर इशारा करते हैं। 24 घंटे में डॉक्टर से मिलें।
+                                </div>
+                                <div style="margin-top: 12px;">
+                                    <strong style="font-size: 14px;">आपके लक्षण:</strong><br>
+                                    <span class="symptom-tag">बुखार (102°F)</span>
+                                    <span class="symptom-tag">सिर दर्द</span>
+                                    <span class="symptom-tag">3 दिन</span>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">🏥 अभी क्या करें</div>
+                                <div class="card-desc">
+                                    1. पैरासिटामोल ले सकते हैं (डॉक्टर की सलाह से)<br>
+                                    2. खूब पानी पीएं<br>
+                                    3. आराम करें<br>
+                                    4. अगर बुखार 103°F से ज्यादा हो तो तुरंत अस्पताल जाएं
+                                </div>
+                            </div>
+
+                            <div class="card" style="background: #FFEBEE;">
+                                <div class="card-title" style="color: var(--danger);">🚨 खतरे के संकेत</div>
+                                <div class="card-desc" style="color: var(--text);">
+                                    अगर ये हों तो तुरंत अस्पताल जाएं:<br>
+                                    • खून आना या दाने<br>
+                                    • बहुत कमजोरी<br>
+                                    • उल्टी होना<br>
+                                    • सांस लेने में तकलीफ
+                                </div>
+                            </div>
+
+                            <button class="btn-primary" onclick="showScreen('find-hospital')">
+                                नजदीकी अस्पताल खोजें
+                            </button>
+                            <button class="btn-secondary">
+                                डॉक्टर से बात करें (टेलीमेडिसिन)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medicine Scan Screen -->
+                <div id="screen-medicine-scan" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>दवाई पहचानें</h1>
+                            <p>गोली या पैकेट की फोटो लें</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="camera-preview">
+                                <div class="camera-overlay"></div>
+                                <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 14px;">
+                                    दवाई को फ्रेम में रखें
+                                </div>
+                            </div>
+
+                            <button class="capture-btn" onclick="showScreen('medicine-result')"></button>
+
+                            <div style="text-align: center; margin: 20px 0;">
+                                <p style="color: var(--text-light); font-size: 14px;">या</p>
+                            </div>
+
+                            <div class="medicine-upload">
+                                <div class="upload-icon">📸</div>
+                                <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">गैलरी से फोटो चुनें</div>
+                                <div style="font-size: 13px; color: var(--text-light);">गोली या पैकेट की साफ फोटो लें</div>
+                            </div>
+
+                            <div class="alert" style="margin-top: 20px;">
+                                <div class="alert-icon">💡</div>
+                                <div class="alert-text">
+                                    <strong>टिप:</strong> अच्छी रोशनी में साफ फोटो लें। पैकेट पर लिखा नाम साफ दिखना चाहिए।
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medicine Result Screen -->
+                <div id="screen-medicine-result" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('medicine-scan')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>दवाई की जानकारी</h1>
+                            <p>पहचान पूरी हुई</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="card" style="border-left: 4px solid var(--primary);">
+                                <div style="display: flex; gap: 16px; align-items: start;">
+                                    <div style="width: 80px; height: 80px; background: #f0f0f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 40px;">
+                                        💊
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div class="card-title">पैरासिटामोल 500mg</div>
+                                        <div class="card-desc">दर्द और बुखार की दवाई</div>
+                                        <div style="margin-top: 8px; font-size: 12px; color: var(--primary); font-weight: 600;">
+                                            ✓ सुरक्षित दवाई
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">📋 उपयोग</div>
+                                <div class="card-desc">
+                                    <strong>कब लें:</strong> बुखार या दर्द में<br>
+                                    <strong>कितनी लें:</strong> 1-2 गोली, दिन में 3-4 बार<br>
+                                    <strong>कैसे लें:</strong> खाने के बाद, पानी के साथ<br>
+                                    <strong>अधिकतम:</strong> 24 घंटे में 8 गोली से ज्यादा नहीं
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">⚠️ सावधानियां</div>
+                                <div class="card-desc">
+                                    • खाली पेट न लें<br>
+                                    • शराब के साथ न लें<br>
+                                    • लिवर की बीमारी में डॉक्टर से पूछें<br>
+                                    • गर्भवती/दूध पिलाती महिलाएं डॉक्टर से पूछें
+                                </div>
+                            </div>
+
+                            <div class="card" style="background: #E8F5E9;">
+                                <div class="card-title" style="color: var(--primary);">💰 कीमत की जानकारी</div>
+                                <div class="card-desc" style="color: var(--text);">
+                                    <strong>ब्रांड:</strong> ₹20-30 (10 गोली)<br>
+                                    <strong>जेनेरिक:</strong> ₹5-10 (10 गोली)<br>
+                                    <em style="font-size: 12px;">जन औषधि केंद्र पर सस्ती मिलेगी</em>
+                                </div>
+                            </div>
+
+                            <button class="btn-primary">
+                                नजदीकी जन औषधि केंद्र खोजें
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Find Hospital Screen -->
+                <div id="screen-find-hospital" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>स्वास्थ्य सुविधाएं</h1>
+                            <p>आपके पास उपलब्ध</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="input-group">
+                                <label class="input-label">🔍 किस तरह की सुविधा चाहिए?</label>
+                                <select class="input-field">
+                                    <option>सभी</option>
+                                    <option>प्राथमिक स्वास्थ्य केंद्र (PHC)</option>
+                                    <option>सामुदायिक स्वास्थ्य केंद्र (CHC)</option>
+                                    <option>जिला अस्पताल</option>
+                                    <option>प्राइवेट अस्पताल</option>
+                                    <option>जन औषधि केंद्र</option>
+                                </select>
+                            </div>
+
+                            <div class="facility-list">
+                                <div class="facility-item">
+                                    <div class="facility-name">राजकीय प्राथमिक स्वास्थ्य केंद्र</div>
+                                    <div class="facility-info">📍 रामपुर गांव</div>
+                                    <div class="facility-info distance">📏 2.3 किमी दूर (5 मिनट)</div>
+                                    <div class="facility-info">⏰ 24 घंटे खुला</div>
+                                    <div class="facility-info">✓ डॉक्टर उपलब्ध • ✓ दवाईयां • ✓ एम्बुलेंस</div>
+                                    <button class="btn-primary" style="margin-top: 12px; font-size: 14px; padding: 10px;">
+                                        📞 कॉल करें • 🗺️ रास्ता देखें
+                                    </button>
+                                </div>
+
+                                <div class="facility-item">
+                                    <div class="facility-name">सामुदायिक स्वास्थ्य केंद्र</div>
+                                    <div class="facility-info">📍 सीतापुर</div>
+                                    <div class="facility-info distance">📏 8.5 किमी दूर (15 मिनट)</div>
+                                    <div class="facility-info">⏰ 24 घंटे खुला</div>
+                                    <div class="facility-info">✓ विशेषज्ञ डॉक्टर • ✓ X-Ray • ✓ ऑपरेशन</div>
+                                    <button class="btn-primary" style="margin-top: 12px; font-size: 14px; padding: 10px;">
+                                        📞 कॉल करें • 🗺️ रास्ता देखें
+                                    </button>
+                                </div>
+
+                                <div class="facility-item">
+                                    <div class="facility-name">जन औषधि केंद्र</div>
+                                    <div class="facility-info">📍 बाजार चौक</div>
+                                    <div class="facility-info distance">📏 1.2 किमी दूर (3 मिनट)</div>
+                                    <div class="facility-info">⏰ 9 AM - 7 PM</div>
+                                    <div class="facility-info">💰 सस्ती दवाईयां (50-90% छूट)</div>
+                                    <button class="btn-primary" style="margin-top: 12px; font-size: 14px; padding: 10px;">
+                                        📞 कॉल करें • 🗺️ रास्ता देखें
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emergency Screen -->
+                <div id="screen-emergency" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header" style="background: linear-gradient(135deg, var(--danger) 0%, #C62828 100%);">
+                            <h1>🚨 आपातकालीन</h1>
+                            <p>तुरंत मदद के लिए</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="card" style="background: #FFEBEE; border-left: 4px solid var(--danger);">
+                                <div class="card-title" style="color: var(--danger);">⚠️ ये जानलेवा हो सकते हैं</div>
+                                <div class="card-desc" style="color: var(--text);">
+                                    • सांस लेने में बहुत तकलीफ<br>
+                                    • दिल में दर्द या दबाव<br>
+                                    • बेहोशी या चक्कर आना<br>
+                                    • खून की उल्टी या पॉटी<br>
+                                    • गंभीर चोट या दुर्घटना
+                                </div>
+                            </div>
+
+                            <div style="background: var(--danger); color: white; padding: 24px; border-radius: 16px; margin-bottom: 16px; text-align: center;">
+                                <div style="font-size: 48px; margin-bottom: 12px;">📞</div>
+                                <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">राष्ट्रीय एम्बुलेंस सेवा</div>
+                                <div style="font-size: 48px; font-weight: 700; margin-bottom: 12px;">108</div>
+                                <button style="background: white; color: var(--danger); border: none; padding: 16px 32px; border-radius: 12px; font-size: 18px; font-weight: 700; cursor: pointer; width: 100%;">
+                                    अभी कॉल करें
+                                </button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">🏥 नजदीकी आपातकालीन सेवाएं</div>
+                                <div class="card-desc" style="margin-bottom: 12px;">
+                                    <strong>राजकीय अस्पताल आपातकालीन</strong><br>
+                                    📞 0522-XXXXXXX<br>
+                                    📏 2.3 किमी दूर • 24 घंटे
+                                </div>
+                                <button class="btn-primary" style="font-size: 14px; padding: 12px;">
+                                    कॉल करें और रास्ता देखें
+                                </button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">📞 अन्य महत्वपूर्ण नंबर</div>
+                                <div class="card-desc">
+                                    <strong>पुलिस:</strong> 100<br>
+                                    <strong>महिला हेल्पलाइन:</strong> 1091<br>
+                                    <strong>चाइल्ड हेल्पलाइन:</strong> 1098<br>
+                                    <strong>राष्ट्रीय आपदा:</strong> 1078
+                                </div>
+                            </div>
+
+                            <div class="alert">
+                                <div class="alert-icon">💡</div>
+                                <div class="alert-text">
+                                    <strong>याद रखें:</strong> 108 पर कॉल करते समय अपना सटीक पता और तकलीफ बताएं। शांत रहें।
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ASHA Dashboard Screen -->
+                <div id="screen-asha-dashboard" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>ASHA डैशबोर्ड</h1>
+                            <p>नमस्ते, सुनीता देवी 👩‍⚕️</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-number">156</div>
+                                    <div class="stat-label">कुल परिवार</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number">23</div>
+                                    <div class="stat-label">आज की विजिट</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number">8</div>
+                                    <div class="stat-label">फॉलो-अप ज़रूरी</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-number">12</div>
+                                    <div class="stat-label">गर्भवती महिलाएं</div>
+                                </div>
+                            </div>
+
+                            <div class="card" style="background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); border-left: 4px solid var(--warning);">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div class="card-title">⚠️ डेंगू अलर्ट</div>
+                                        <div class="card-desc" style="color: var(--text);">
+                                            आपके क्षेत्र में पिछले 7 दिनों में 15 केस रिपोर्ट हुए हैं
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn-primary" style="margin-top: 12px; font-size: 14px; padding: 10px;">
+                                    प्रिवेंशन गाइड देखें
+                                </button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-title">📋 आज के कार्य</div>
+                                <div style="margin-top: 12px;">
+                                    <div style="display: flex; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 8px;">
+                                        <div style="width: 40px; height: 40px; background: #E8F5E9; border-radius: 8px; display: flex; align-items: center; justify-content: center;">🤰</div>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: 600; font-size: 14px;">राधा देवी - प्रसव पूर्व जांच</div>
+                                            <div style="font-size: 12px; color: var(--text-light);">7 महीने की गर्भवती • आज 2 PM</div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px; margin-bottom: 8px;">
+                                        <div style="width: 40px; height: 40px; background: #FFF3E0; border-radius: 8px; display: flex; align-items: center; justify-content: center;">👶</div>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: 600; font-size: 14px;">राज कुमार - टीकाकरण</div>
+                                            <div style="font-size: 12px; color: var(--text-light);">6 महीने • डीपीटी बूस्टर ड्यू</div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 12px; padding: 12px; background: var(--bg); border-radius: 8px;">
+                                        <div style="width: 40px; height: 40px; background: #FFEBEE; border-radius: 8px; display: flex; align-items: center; justify-content: center;">🩺</div>
+                                        <div style="flex: 1;">
+                                            <div style="font-weight: 600; font-size: 14px;">सीता देवी - फॉलो-अप</div>
+                                            <div style="font-size: 12px; color: var(--text-light);">डेंगू संदिग्ध • रिपोर्ट चेक करें</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quick-actions">
+                                <div class="action-btn">
+                                    <div class="action-icon">📝</div>
+                                    <div class="action-label">नया केस</div>
+                                </div>
+                                <div class="action-btn">
+                                    <div class="action-icon">📊</div>
+                                    <div class="action-label">रिपोर्ट</div>
+                                </div>
+                                <div class="action-btn">
+                                    <div class="action-icon">💊</div>
+                                    <div class="action-label">स्टॉक चेक</div>
+                                </div>
+                                <div class="action-btn">
+                                    <div class="action-icon">📚</div>
+                                    <div class="action-label">ट्रेनिंग</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bottom-nav">
+                        <div class="nav-item" onclick="showScreen('home')">
+                            <div class="nav-icon">🏠</div>
+                            <div class="nav-label">होम</div>
+                        </div>
+                        <div class="nav-item">
+                            <div class="nav-icon">📋</div>
+                            <div class="nav-label">इतिहास</div>
+                        </div>
+                        <div class="nav-item active">
+                            <div class="nav-icon">👩‍⚕️</div>
+                            <div class="nav-label">ASHA</div>
+                        </div>
+                        <div class="nav-item">
+                            <div class="nav-icon">⚙️</div>
+                            <div class="nav-label">सेटिंग्स</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Tips Screen -->
+                <div id="screen-health-tips" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>स्वास्थ्य टिप्स</h1>
+                            <p>सेहत की जानकारी</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="card">
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                                        🦟
+                                    </div>
+                                    <div>
+                                        <div class="card-title">मच्छर से बचाव</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">5 मिनट पढ़ाई</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    डेंगू और मलेरिया से बचने के लिए ज़रूरी उपाय। कैसे रोकें मच्छरों का प्रजनन।
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #FF6B35 0%, #E63946 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                                        🍎
+                                    </div>
+                                    <div>
+                                        <div class="card-title">संतुलित आहार</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">6 मिनट पढ़ाई</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    कम खर्च में पौष्टिक भोजन कैसे बनाएं। बच्चों और गर्भवती महिलाओं के लिए खास टिप्स।
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #00A86B 0%, #008556 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                                        💧
+                                    </div>
+                                    <div>
+                                        <div class="card-title">साफ पानी</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">4 मिनट पढ़ाई</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    पानी को कैसे साफ करें। हैजा और दस्त जैसी बीमारियों से कैसे बचें।
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #FFA500 0%, #FF8C00 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                                        👶
+                                    </div>
+                                    <div>
+                                        <div class="card-title">बच्चों की देखभाल</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">8 मिनट पढ़ाई</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    0-5 साल के बच्चों की सेहत। टीकाकरण शेड्यूल, पोषण और विकास।
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                                    <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                                        🤰
+                                    </div>
+                                    <div>
+                                        <div class="card-title">गर्भावस्था</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">10 मिनट पढ़ाई</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    गर्भावस्था में क्या खाएं, कौन सी जांचें ज़रूरी हैं, खतरे के संकेत कैसे पहचानें।
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Screen -->
+                <div id="screen-history" class="screen-view hidden">
+                    <div class="status-bar">
+                        <div onclick="showScreen('home')" style="cursor: pointer;">← वापस</div>
+                        <div>9:41</div>
+                    </div>
+                    <div class="screen-content">
+                        <div class="header">
+                            <h1>आपका इतिहास</h1>
+                            <p>पिछली जांचें और परामर्श</p>
+                        </div>
+                        
+                        <div class="content">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <div>
+                                        <div class="card-title">लक्षण जांच</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">12 फरवरी 2026</div>
+                                    </div>
+                                    <div class="severity-badge severity-medium">मध्यम</div>
+                                </div>
+                                <div class="card-desc">
+                                    बुखार और सिर दर्द • सुझाव: डॉक्टर से मिलें
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <span class="symptom-tag">बुखार</span>
+                                    <span class="symptom-tag">सिर दर्द</span>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <div>
+                                        <div class="card-title">दवाई पहचान</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">10 फरवरी 2026</div>
+                                    </div>
+                                </div>
+                                <div class="card-desc">
+                                    पैरासिटामोल 500mg • दर्द निवारक
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <div>
+                                        <div class="card-title">लक्षण जांच</div>
+                                        <div style="font-size: 12px; color: var(--text-light);">5 फरवरी 2026</div>
+                                    </div>
+                                    <div class="severity-badge severity-low">हल्का</div>
+                                </div>
+                                <div class="card-desc">
+                                    खांसी और जुकाम • सुझाव: घरेलू उपचार
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <span class="symptom-tag">खांसी</span>
+                                    <span class="symptom-tag">जुकाम</span>
+                                </div>
+                            </div>
+
+                            <div class="alert">
+                                <div class="alert-icon">💾</div>
+                                <div class="alert-text">
+                                    आपका डेटा सुरक्षित है और सिर्फ आपके फोन में रहता है। जब तक आप शेयर न करें, किसी को नहीं दिखता।
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bottom-nav">
+                        <div class="nav-item" onclick="showScreen('home')">
+                            <div class="nav-icon">🏠</div>
+                            <div class="nav-label">होम</div>
+                        </div>
+                        <div class="nav-item active">
+                            <div class="nav-icon">📋</div>
+                            <div class="nav-label">इतिहास</div>
+                        </div>
+                        <div class="nav-item" onclick="showScreen('asha-dashboard')">
+                            <div class="nav-icon">👩‍⚕️</div>
+                            <div class="nav-label">ASHA</div>
+                        </div>
+                        <div class="nav-item">
+                            <div class="nav-icon">⚙️</div>
+                            <div class="nav-label">सेटिंग्स</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="screen-selector">
+            <h2>📱 HealthSathi Screens</h2>
+            <p style="color: var(--text-light); margin-bottom: 20px; font-size: 14px;">
+                Click to navigate between different app screens
+            </p>
+            
+            <div class="screen-list">
+                <button class="screen-btn active" onclick="showScreen('home')">
+                    🏠 Home Screen
+                </button>
+                <button class="screen-btn" onclick="showScreen('symptom-checker')">
+                    🩺 Symptom Checker (Chat)
+                </button>
+                <button class="screen-btn" onclick="showScreen('symptom-result')">
+                    📋 Symptom Results
+                </button>
+                <button class="screen-btn" onclick="showScreen('medicine-scan')">
+                    💊 Medicine Scanner
+                </button>
+                <button class="screen-btn" onclick="showScreen('medicine-result')">
+                    💊 Medicine Information
+                </button>
+                <button class="screen-btn" onclick="showScreen('find-hospital')">
+                    🏥 Find Healthcare Facilities
+                </button>
+                <button class="screen-btn" onclick="showScreen('emergency')">
+                    🚨 Emergency Services
+                </button>
+                <button class="screen-btn" onclick="showScreen('asha-dashboard')">
+                    👩‍⚕️ ASHA Worker Dashboard
+                </button>
+                <button class="screen-btn" onclick="showScreen('health-tips')">
+                    📚 Health Tips & Education
+                </button>
+                <button class="screen-btn" onclick="showScreen('history')">
+                    📋 User History
+                </button>
+            </div>
+
+            <div style="margin-top: 30px; padding: 20px; background: #E8F5E9; border-radius: 12px;">
+                <h3 style="font-size: 16px; margin-bottom: 10px; color: var(--primary);">💡 Design Features</h3>
+                <ul style="font-size: 13px; line-height: 1.8; color: var(--text); padding-left: 20px;">
+                    <li>Bilingual UI (Hindi primary)</li>
+                    <li>Large touch targets for accessibility</li>
+                    <li>Voice-first interaction</li>
+                    <li>Offline-capable design</li>
+                    <li>Color-coded severity levels</li>
+                    <li>Simple navigation with icons</li>
+                    <li>Clear disclaimers for safety</li>
+                    <li>ASHA worker specific features</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showScreen(screenId) {
+            // Hide all screens
+            document.querySelectorAll('.screen-view').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            // Show selected screen
+            const targetScreen = document.getElementById('screen-' + screenId);
+            if (targetScreen) {
+                targetScreen.classList.remove('hidden');
+            }
+            
+            // Update button states
+            document.querySelectorAll('.screen-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
