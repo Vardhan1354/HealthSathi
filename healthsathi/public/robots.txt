@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# HealthSathi - Offline Healthcare PWA
+# AI-powered healthcare platform for rural communities

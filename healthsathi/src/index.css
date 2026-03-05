@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   HEALTHSATHI DESIGN SYSTEM
+   ============================================ */
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-white text-hs-text;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- BUTTONS ---- */
+@layer components {
+
+  /* Primary (Blue) */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[44px]
+           rounded-xl text-base font-semibold text-white
+           bg-hs-blue hover:bg-hs-blue-dark active:scale-95
+           transition-all duration-150 shadow-sm select-none;
+  }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed active:scale-100;
+  }
+
+  /* Secondary (Gray) */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[44px]
+           rounded-xl text-base font-semibold text-hs-text
+           bg-white border border-hs-border hover:bg-hs-bg active:scale-95
+           transition-all duration-150 select-none;
+  }
+
+  /* Danger (Red) */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[44px]
+           rounded-xl text-base font-semibold text-white
+           bg-hs-red hover:bg-hs-red-dark active:scale-95
+           transition-all duration-150 select-none;
+  }
+
+  /* Success (Green) */
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[44px]
+           rounded-xl text-base font-semibold text-white
+           bg-hs-green hover:bg-hs-green-dark active:scale-95
+           transition-all duration-150 select-none;
+  }
+
+  /* Icon button */
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px]
+           rounded-xl bg-white border border-hs-border hover:bg-hs-bg active:scale-95
+           transition-all duration-150 select-none;
+  }
+
+  /* ---- CARDS ---- */
+  .hs-card {
+    @apply bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.08)] p-4;
+  }
+  .hs-card-sm {
+    @apply bg-white rounded-xl shadow-[0_1px_6px_rgba(0,0,0,0.07)] p-3;
+  }
+
+  /* ---- STATUS BADGES ---- */
+  .badge-success {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-hs-green-light text-hs-green-dark;
+  }
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-hs-yellow-light text-hs-yellow-dark;
+  }
+  .badge-danger {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-hs-red-light text-hs-red-dark;
+  }
+  .badge-info {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-hs-blue-light text-hs-blue-dark;
+  }
+  .badge-purple {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold
+           bg-hs-purple-light text-hs-purple-dark;
+  }
+
+  /* ---- FORM INPUTS ---- */
+  .hs-input {
+    @apply w-full px-4 py-3 min-h-[44px] text-base rounded-xl border border-hs-border
+           bg-white text-hs-text placeholder-hs-text-secondary
+           focus:outline-none focus:ring-2 focus:ring-hs-blue/30 focus:border-hs-blue
+           transition-all duration-150;
+  }
+
+  /* ---- SECTION HEADER ---- */
+  .hs-section-title {
+    @apply text-xs font-bold uppercase tracking-widest text-hs-text-secondary mb-3;
+  }
+
+  /* ---- FEATURE CARD (home screen) ---- */
+  .feature-card {
+    @apply flex items-center gap-4 p-4 min-h-[80px] bg-white rounded-2xl
+           shadow-[0_2px_8px_rgba(0,0,0,0.07)] border border-hs-border
+           active:scale-[0.98] transition-all duration-150 cursor-pointer select-none;
+  }
+  .feature-card-icon {
+    @apply w-12 h-12 min-w-[48px] h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0;
+  }
+
+  /* ---- OFFLINE BANNER ---- */
+  .offline-banner {
+    @apply flex items-center gap-2 px-4 py-2.5 bg-hs-yellow text-white
+           text-sm font-semibold w-full;
+  }
+
+  /* ---- SKELETON ---- */
+  .skeleton {
+    @apply bg-gradient-to-r from-hs-border via-hs-bg to-hs-border
+           bg-[length:200%_100%] animate-[shimmer_1.5s_ease-in-out_infinite] rounded-lg;
+  }
+
+  /* ---- STATUS ROW (scanner results) ---- */
+  .status-row-ok   { @apply flex items-start gap-3 py-2.5 border-b border-hs-border last:border-0; }
+  .status-row-warn { @apply flex items-start gap-3 py-2.5 border-b border-hs-border last:border-0 bg-hs-yellow-light; }
+  .status-row-fail { @apply flex items-start gap-3 py-2.5 border-b border-hs-border last:border-0 bg-hs-red-light; }
+
+  /* ---- STEP indicator ---- */
+  .step-dot-active   { @apply w-3 h-3 rounded-full bg-hs-blue; }
+  .step-dot-inactive { @apply w-2 h-2 rounded-full bg-hs-border; }
+}
+
+/* ---- ANIMATIONS ---- */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.animate-fade-in  { animation: fadeIn  0.3s ease-out both; }
+.animate-slide-up { animation: slideUp 0.35s ease-out both; }
+.animate-scale-in { animation: scaleIn 0.25s ease-out both; }
+
+/* ---- SCROLLBAR (desktop) ---- */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 2px; }
+
+/* ---- iOS SAFE AREA (PWA home bar) ---- */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}

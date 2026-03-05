@@ -1,0 +1,330 @@
+﻿openapi: 3.0.3
+info:
+  title: HealthSathi API
+  description: |
+    HealthSathi Backend — AWS AI for Bharat Hackathon
+    All AI processing via AWS services (Bedrock, Rekognition, Textract, Translate, Polly).
+    No external API keys required — all access via IAM roles.
+  version: 2.0.0
+
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/{stage}
+    variables:
+      apiId:  { default: your-api-id }
+      region: { default: ap-south-1 }
+      stage:  { default: prod }
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+
+  /api/scan-medicine:
+    post:
+      summary: Scan medicine image (Rekognition + Bedrock)
+      description: |
+        1. AWS Rekognition DetectLabels + DetectText on uploaded image
+        2. AWS Bedrock Claude 3.5 Sonnet explains medicine category, usage, warnings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [s3Key]
+              properties:
+                s3Key:    { type: string, description: S3 key of uploaded medicine image }
+                language: { type: string, enum: [en, hi, mr], default: en }
+      responses:
+        '200':
+          description: Medicine analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  explanation:    { type: string }
+                  detectedLabels: { type: array, items: { type: string } }
+                  detectedText:   { type: array, items: { type: string } }
+                  model:          { type: string }
+
+  /api/verify-medicine:
+    post:
+      summary: Verify medicine authenticity (Rekognition + Bedrock)
+      description: |
+        If s3Key provided: AWS Rekognition image analysis + Bedrock pattern analysis
+        If only barcode: rule-based check with DynamoDB cache
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                barcode:     { type: string }
+                s3Key:       { type: string, description: S3 key of medicine image }
+                hasHologram: { type: boolean }
+                batchNumber: { type: string }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verdict:    { type: string, enum: [genuine, suspicious, counterfeit] }
+                  confidence: { type: number }
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:     { type: string }
+                        label:  { type: string }
+                        status: { type: string, enum: [pass, fail, warn] }
+                        detail: { type: string }
+                  recommendation: { type: string }
+                  fromCache:      { type: boolean }
+
+  /api/read-prescription:
+    post:
+      summary: OCR prescription (Textract + Bedrock)
+      description: |
+        1. AWS Textract AnalyzeDocument (FORMS + TABLES) extracts text
+        2. AWS Bedrock Claude explains medicines, dosage, schedule in plain language
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [s3Key]
+              properties:
+                s3Key:     { type: string }
+                language:  { type: string, enum: [en, hi, mr], default: en }
+                patientId: { type: string }
+      responses:
+        '200':
+          description: Prescription explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  explanation:    { type: string }
+                  ocrText:        { type: string }
+                  ocrConfidence:  { type: number }
+                  keyValues:      { type: object }
+                  model:          { type: string }
+
+  /api/explain-report:
+    post:
+      summary: Explain lab report (Textract + Bedrock + Timestream)
+      description: |
+        1. AWS Textract AnalyzeDocument extracts text + tables
+        2. AWS Bedrock Claude explains each test result in plain language
+        3. AWS Timestream logs health metric values for time-series analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                s3Key:     { type: string, description: S3 key (use instead of text) }
+                text:      { type: string, description: Direct text input (fallback) }
+                language:  { type: string, enum: [en, hi, mr], default: en }
+                patientId: { type: string }
+      responses:
+        '200':
+          description: Lab report explanation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  explanation:   { type: string }
+                  ocrText:       { type: string }
+                  ocrConfidence: { type: number }
+                  model:         { type: string }
+                  type:          { type: string, example: lab_report }
+
+  /api/check-interactions:
+    post:
+      summary: Check drug interactions (Bedrock Claude)
+      description: AWS Bedrock Claude 3.5 Sonnet checks for drug interaction risks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [medicines]
+              properties:
+                medicines:
+                  type: array
+                  items: { type: string }
+                  minItems: 2
+                  maxItems: 10
+                  example: [Paracetamol, Ibuprofen, Metformin]
+                language: { type: string, enum: [en, hi, mr], default: en }
+      responses:
+        '200':
+          description: Interaction analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overallRisk:  { type: string, enum: [safe, caution, avoid] }
+                  summary:      { type: string }
+                  interactions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pair:           { type: array, items: { type: string } }
+                        severity:       { type: string, enum: [major, moderate, minor, none] }
+                        effect:         { type: string }
+                        recommendation: { type: string }
+                  generalAdvice: { type: array, items: { type: string } }
+                  seeDoctor:     { type: boolean }
+                  fromCache:     { type: boolean }
+
+  /api/translate:
+    post:
+      summary: Translate text (AWS Translate)
+      description: Real-time translation between English, Hindi, and Marathi using AWS Translate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, targetLanguage]
+              properties:
+                text:           { type: string }
+                targetLanguage: { type: string, enum: [en, hi, mr, ta, te, kn, bn] }
+                sourceLanguage: { type: string, default: auto }
+      responses:
+        '200':
+          description: Translated text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  translatedText:     { type: string }
+                  detectedSourceLang: { type: string }
+                  targetLanguage:     { type: string }
+
+  /api/speak:
+    post:
+      summary: Text-to-speech (AWS Polly)
+      description: |
+        Convert health information text to speech in Hindi / Marathi / English.
+        Uses AWS Polly voice Aditi (hi-IN) or Raveena (en-IN).
+        Returns pre-signed S3 URL + base64 audio fallback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:     { type: string, maxLength: 5000 }
+                language: { type: string, enum: [en, hi, mr], default: en }
+      responses:
+        '200':
+          description: Audio response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audioUrl:    { type: string, nullable: true, description: Pre-signed S3 URL (1 hour) }
+                  audioBase64: { type: string, description: Base64 MP3 inline fallback }
+                  voiceId:     { type: string }
+                  language:    { type: string }
+
+  /api/sync:
+    post:
+      summary: Sync offline queue
+      description: Process offline queue items to DynamoDB when connectivity is restored
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, syncQueue]
+              properties:
+                userId:    { type: string }
+                syncQueue:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:        { type: string }
+                      type:      { type: string }
+                      priority:  { type: string }
+                      timestamp: { type: number }
+                      data:      { type: object }
+      responses:
+        '200':
+          description: Sync results
+
+  /api/outbreak-detect:
+    post:
+      summary: Detect disease outbreaks
+      description: DBSCAN geographic clustering + SNS alert via AWS SNS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symptomReports]
+              properties:
+                symptomReports:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      village:   { type: string }
+                      symptoms:  { type: array, items: { type: string } }
+                      location:
+                        type: object
+                        properties:
+                          lat: { type: number }
+                          lon: { type: number }
+                      timestamp: { type: number }
+      responses:
+        '200':
+          description: Detected clusters and alerts
+
+  /api/dashboard/{doctorId}:
+    get:
+      summary: Doctor dashboard aggregated data
+      parameters:
+        - name: doctorId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Dashboard data
+
+  /api/sms:
+    post:
+      summary: SMS command handler
+      description: Handle FEVER/MEDICINE/DOCTOR SMS commands in en/hi/mr via AWS SNS
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key

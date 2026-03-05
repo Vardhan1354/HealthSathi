@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+healthsathi/node_modules/
+backend-local/node_modules/
+backend/node_modules/
+
+# Build output
+healthsathi/dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+backend-local/.env
+
+# Python virtual environment
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Lock files (optional - uncomment if you want to track them)
+# package-lock.json
+# healthsathi/package-lock.json

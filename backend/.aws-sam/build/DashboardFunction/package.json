@@ -1,0 +1,1 @@
+{ "name": "healthsathi-dashboard", "version": "1.0.0", "description": "Doctor dashboard data aggregator", "main": "index.js", "dependencies": {} }

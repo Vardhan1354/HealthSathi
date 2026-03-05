@@ -1,0 +1,1 @@
+{ "name": "healthsathi-sms", "version": "1.0.0", "description": "SMS gateway handler", "main": "index.js", "dependencies": {} }

@@ -1,0 +1,831 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: HealthSathi Backend - AWS AI for Bharat Hackathon
+
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+    AllowedValues: [dev, staging, prod]
+  AlertEmail:
+    Type: String
+    Description: Email for CloudWatch alarm notifications
+  BedrockRegion:
+    Type: String
+    Default: us-east-1
+    Description: AWS region where Bedrock models are available
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs18.x
+    MemorySize: 512
+    Tracing: Active
+    Layers:
+      - !Ref SharedLayer
+    Environment:
+      Variables:
+        TABLE_NAME:          !Ref HealthSathiTable
+        UPLOAD_BUCKET:       !Ref UploadBucket
+        MODELS_BUCKET:       !Ref ModelsBucket
+        CONTENT_BUCKET:      !Ref ContentBucket
+        DOCTOR_ALERTS_TOPIC: !Ref DoctorAlerts
+        ENVIRONMENT:         !Ref Environment
+        BEDROCK_REGION:      !Ref BedrockRegion
+        BEDROCK_MODEL_ID:    anthropic.claude-3-5-sonnet-20241022-v2:0
+        BEDROCK_FAST_MODEL_ID: amazon.nova-lite-v1:0
+        CONVERSATIONS_BUCKET: !Ref ConversationsBucket
+        TIMESTREAM_DB:       ''
+        TIMESTREAM_TABLE:    ''
+        POWERTOOLS_SERVICE_NAME: healthsathi
+        LOG_LEVEL: INFO
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowOrigin: "'*'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,X-Api-Key'"
+
+Resources:
+
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub 'healthsathi-shared-${Environment}'
+      Description: Shared DynamoDB, response, and metrics utilities
+      ContentUri: layers/shared/
+      CompatibleRuntimes: [nodejs18.x]
+      RetentionPolicy: Delete
+
+  HealthSathiApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Environment
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          Quota:
+            Limit: 10000
+            Period: DAY
+          Throttle:
+            BurstLimit: 100
+            RateLimit: 50
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          MetricsEnabled: true
+          DataTraceEnabled: false
+          LoggingLevel: ERROR
+
+  BedrockPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-bedrock-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Resource:
+              - !Sub 'arn:aws:bedrock:${BedrockRegion}::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0'
+              - !Sub 'arn:aws:bedrock:${BedrockRegion}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
+              - !Sub 'arn:aws:bedrock:${BedrockRegion}::foundation-model/amazon.nova-lite-v1:0'
+              - !Sub 'arn:aws:bedrock:${BedrockRegion}::foundation-model/amazon.titan-embed-text-v1'
+
+  RekognitionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-rekognition-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - rekognition:DetectLabels
+              - rekognition:DetectText
+              - rekognition:DetectModerationLabels
+            Resource: '*'
+
+  TextractPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-textract-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - textract:AnalyzeDocument
+              - textract:DetectDocumentText
+              - textract:AnalyzeExpense
+            Resource: '*'
+
+  TranslatePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-translate-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - translate:TranslateText
+              - translate:ListLanguages
+              - comprehend:DetectDominantLanguage
+            Resource: '*'
+
+  PollyPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-polly-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - polly:SynthesizeSpeech
+              - polly:DescribeVoices
+            Resource: '*'
+
+  TranscribePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub 'healthsathi-transcribe-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - transcribe:StartTranscriptionJob
+              - transcribe:GetTranscriptionJob
+              - transcribe:StartMedicalTranscriptionJob
+              - transcribe:GetMedicalTranscriptionJob
+            Resource: '*'
+
+  SyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-sync-${Environment}'
+      CodeUri: functions/sync/
+      Handler: index.handler
+      Description: Handle offline queue sync from mobile apps
+      Events:
+        SyncAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/sync
+            Method: post
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - CloudWatchPutMetricPolicy: {}
+
+  OutbreakDetectionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-outbreak-${Environment}'
+      CodeUri: functions/outbreak/
+      Handler: index.handler
+      Description: Detect disease clusters via DBSCAN geographic analysis
+      Timeout: 60
+      MemorySize: 1024
+      Events:
+        DetectAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/outbreak-detect
+            Method: post
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HealthSathiTable
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt DoctorAlerts.TopicName
+        - CloudWatchPutMetricPolicy: {}
+  MedicineScannerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-medicine-scanner-${Environment}'
+      CodeUri: functions/medicine-scanner/
+      Handler: index.handler
+      Description: Classify medicine image via Rekognition + explain via Bedrock
+      Timeout: 45
+      Events:
+        ScanAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/scan-medicine
+            Method: post
+      Policies:
+        - !Ref BedrockPolicy
+        - !Ref RekognitionPolicy
+        - !Ref TranslatePolicy
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+        - CloudWatchPutMetricPolicy: {}
+
+  CounterfeitFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-counterfeit-${Environment}'
+      CodeUri: functions/counterfeit/
+      Handler: index.handler
+      Description: Verify medicine authenticity via Rekognition + Bedrock Claude
+      Timeout: 45
+      Events:
+        CounterfeitAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/verify-medicine
+            Method: post
+      Policies:
+        - !Ref BedrockPolicy
+        - !Ref RekognitionPolicy
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - S3ReadPolicy:
+            BucketName: !Ref UploadBucket
+        - CloudWatchPutMetricPolicy: {}
+
+  PrescriptionReaderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-prescription-reader-${Environment}'
+      CodeUri: functions/prescription-reader/
+      Handler: index.handler
+      Description: OCR prescriptions with Textract + parse with Bedrock Claude
+      Timeout: 60
+      Events:
+        PrescriptionAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/read-prescription
+            Method: post
+      Policies:
+        - !Ref BedrockPolicy
+        - !Ref TextractPolicy
+        - !Ref TranslatePolicy
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - CloudWatchPutMetricPolicy: {}
+
+  LabReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-lab-report-${Environment}'
+      CodeUri: functions/lab-report/
+      Handler: index.handler
+      Description: Extract lab report via Textract + explain via Bedrock Claude
+      Timeout: 60
+      Events:
+        LabReportAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/explain-report
+            Method: post
+      Policies:
+        - !Ref BedrockPolicy
+        - !Ref TextractPolicy
+        - !Ref TranslatePolicy
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - CloudWatchPutMetricPolicy: {}
+
+  InteractionCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-interaction-checker-${Environment}'
+      CodeUri: functions/interaction-checker/
+      Handler: index.handler
+      Description: Drug interaction checking via Bedrock Claude + DynamoDB cache
+      Timeout: 45
+      Events:
+        InteractionAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/check-interactions
+            Method: post
+      Policies:
+        - !Ref BedrockPolicy
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HealthSathiTable
+        - CloudWatchPutMetricPolicy: {}
+
+  TranslateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-translate-${Environment}'
+      CodeUri: functions/translate/
+      Handler: index.handler
+      Description: Multi-language translation via AWS Translate + TTS via Polly
+      Timeout: 30
+      Events:
+        TranslateAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/translate
+            Method: post
+        SpeechAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/speak
+            Method: post
+      Policies:
+        - !Ref TranslatePolicy
+        - !Ref PollyPolicy
+        - S3CrudPolicy:
+            BucketName: !Ref ContentBucket
+        - CloudWatchPutMetricPolicy: {}
+
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-dashboard-${Environment}'
+      CodeUri: functions/dashboard/
+      Handler: index.handler
+      Description: Aggregate doctor dashboard data
+      Events:
+        DashboardAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/dashboard/{doctorId}
+            Method: get
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HealthSathiTable
+        - CloudWatchPutMetricPolicy: {}
+
+  HealthLibraryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-health-library-${Environment}'
+      CodeUri: functions/health-library/
+      Handler: index.handler
+      Description: RAG-powered medical Q&A via Amazon Nova Lite + conversation history in S3
+      Timeout: 30
+      Events:
+        AskAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/health-library/ask
+            Method: post
+        HistoryAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/health-library/history
+            Method: get
+      Policies:
+        - !Ref BedrockPolicy
+        - !Ref TranslatePolicy
+        - S3CrudPolicy:
+            BucketName: !Ref ConversationsBucket
+        - CloudWatchPutMetricPolicy: {}
+
+  PresignFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-presign-${Environment}'
+      CodeUri: functions/presign/
+      Handler: index.handler
+      Description: Generate S3 pre-signed PUT URLs for client-side uploads
+      Timeout: 10
+      Events:
+        PresignAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/presign
+            Method: get
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+        - CloudWatchPutMetricPolicy: {}
+
+  SmsGatewayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'healthsathi-sms-${Environment}'
+      CodeUri: functions/sms/
+      Handler: index.handler
+      Description: Handle SMS commands for feature phones
+      Events:
+        SmsAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref HealthSathiApi
+            Path: /api/sms
+            Method: post
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt DoctorAlerts.TopicName
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: '*'
+
+  HealthSathiTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub 'healthsathi-data-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - {AttributeName: PK,     AttributeType: S}
+        - {AttributeName: SK,     AttributeType: S}
+        - {AttributeName: GSI1PK, AttributeType: S}
+        - {AttributeName: GSI1SK, AttributeType: S}
+        - {AttributeName: GSI2PK, AttributeType: S}
+        - {AttributeName: GSI2SK, AttributeType: S}
+      KeySchema:
+        - {AttributeName: PK, KeyType: HASH}
+        - {AttributeName: SK, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - {AttributeName: GSI1PK, KeyType: HASH}
+            - {AttributeName: GSI1SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: GSI2
+          KeySchema:
+            - {AttributeName: GSI2PK, KeyType: HASH}
+            - {AttributeName: GSI2SK, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'healthsathi-uploads-${AWS::AccountId}-${Environment}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteUploads
+            Status: Enabled
+            ExpirationInDays: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [PUT, POST, GET]
+            AllowedHeaders: ['*']
+            MaxAge: 3600
+
+  ModelsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'healthsathi-ml-models-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  ConversationsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'healthsathi-conversations-${AWS::AccountId}-${Environment}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldConversations
+            Status: Enabled
+            ExpirationInDays: 90
+
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'healthsathi-frontend-${AWS::AccountId}-${Environment}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${WebsiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub 'healthsathi-oac-${Environment}'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: !Sub 'HealthSathi PWA - ${Environment}'
+        Enabled: true
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_200
+        HttpVersion: http2
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+          Compress: true
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+
+  ContentBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'healthsathi-content-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldAudio
+            Status: Enabled
+            ExpirationInDays: 30
+            Prefix: audio/
+
+  DoctorAlerts:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'healthsathi-doctor-alerts-${Environment}'
+      KmsMasterKeyId: alias/aws/sns
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/healthsathi-${Environment}'
+      RetentionInDays: 14
+
+  SyncLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-sync-${Environment}'
+      RetentionInDays: 14
+
+  MedicineScannerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-medicine-scanner-${Environment}'
+      RetentionInDays: 14
+
+  CounterfeitLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-counterfeit-${Environment}'
+      RetentionInDays: 14
+
+  PrescriptionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-prescription-reader-${Environment}'
+      RetentionInDays: 14
+
+  LabReportLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-lab-report-${Environment}'
+      RetentionInDays: 14
+
+  InteractionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-interaction-checker-${Environment}'
+      RetentionInDays: 14
+
+  TranslateLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-translate-${Environment}'
+      RetentionInDays: 14
+
+  HealthLibraryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-health-library-${Environment}'
+      RetentionInDays: 14
+
+  PresignLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/healthsathi-presign-${Environment}'
+      RetentionInDays: 7
+
+  SyncErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'healthsathi-sync-errors-${Environment}'
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SyncFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref DoctorAlerts]
+      TreatMissingData: notBreaching
+
+  ApiLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'healthsathi-api-latency-${Environment}'
+      MetricName: Latency
+      Namespace: AWS/ApiGateway
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref HealthSathiApi
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 5000
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref DoctorAlerts]
+
+  BedrockErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub 'healthsathi-bedrock-errors-${Environment}'
+      MetricName: BedrockCallError
+      Namespace: HealthSathi
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref DoctorAlerts]
+      TreatMissingData: notBreaching
+
+  HealthSathiDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub 'HealthSathi-${Environment}'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Invocations",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-medicine-scanner-${Environment}"],
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-counterfeit-${Environment}"],
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-lab-report-${Environment}"],
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-prescription-reader-${Environment}"],
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-interaction-checker-${Environment}"],
+                  ["AWS/Lambda","Invocations","FunctionName","healthsathi-translate-${Environment}"]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "AWS AI Service Calls",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["HealthSathi","BedrockCallSuccess",{"stat":"Sum","label":"Bedrock"}],
+                  ["HealthSathi","RekognitionCallSuccess",{"stat":"Sum","label":"Rekognition"}],
+                  ["HealthSathi","TextractCallSuccess",{"stat":"Sum","label":"Textract"}],
+                  ["HealthSathi","TranslateCallSuccess",{"stat":"Sum","label":"Translate"}]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "API Gateway",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/ApiGateway","Count","ApiName","HealthSathiApi"],
+                  ["AWS/ApiGateway","4XXError","ApiName","HealthSathiApi"],
+                  ["AWS/ApiGateway","5XXError","ApiName","HealthSathiApi"]
+                ],
+                "period": 300, "stat": "Sum", "view": "timeSeries"
+              }
+            },
+            {
+              "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB Latency",
+                "region": "${AWS::Region}",
+                "metrics": [
+                  ["AWS/DynamoDB","SuccessfulRequestLatency","TableName","healthsathi-data-${Environment}","Operation","GetItem"],
+                  ["AWS/DynamoDB","SuccessfulRequestLatency","TableName","healthsathi-data-${Environment}","Operation","PutItem"]
+                ],
+                "period": 300, "stat": "Average", "view": "timeSeries"
+              }
+            }
+          ]
+        }
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${HealthSathiApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub 'healthsathi-api-endpoint-${Environment}'
+
+  TableName:
+    Description: DynamoDB table name
+    Value: !Ref HealthSathiTable
+
+  UploadBucketName:
+    Description: S3 bucket for Textract/Rekognition uploads
+    Value: !Ref UploadBucket
+
+  ModelsBucketName:
+    Description: S3 bucket for ML models
+    Value: !Ref ModelsBucket
+
+
+  DoctorAlertsTopicArn:
+    Description: SNS topic ARN for doctor alerts
+    Value: !Ref DoctorAlerts
+
+  CloudFrontURL:
+    Description: CloudFront distribution URL for the HealthSathi PWA
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+    Export:
+      Name: !Sub 'healthsathi-frontend-url-${Environment}'
+
+  WebsiteBucketName:
+    Description: S3 bucket for PWA static assets (deploy via CloudFront)
+    Value: !Ref WebsiteBucket
+
+  ConversationsBucketName:
+    Description: S3 bucket for AI conversation history
+    Value: !Ref ConversationsBucket

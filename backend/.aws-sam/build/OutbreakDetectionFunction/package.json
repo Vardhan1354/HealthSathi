@@ -1,0 +1,1 @@
+{ "name": "healthsathi-outbreak", "version": "1.0.0", "description": "Outbreak detection", "main": "index.js", "dependencies": {} }

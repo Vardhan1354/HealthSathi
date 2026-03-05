@@ -1,0 +1,47 @@
+{
+  "name": "HealthSathi - Offline Healthcare",
+  "short_name": "HealthSathi",
+  "description": "AI-powered offline healthcare platform for rural communities. Scan medicines, check symptoms, read lab reports — in your language.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a5f",
+  "orientation": "portrait-primary",
+  "categories": ["health", "medical"],
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Scan Medicine",
+      "short_name": "Medicine",
+      "url": "/patient/medicine-scanner",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Symptom Checker",
+      "short_name": "Symptoms",
+      "url": "/patient/symptom-checker",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Health Library",
+      "short_name": "Library",
+      "url": "/patient/health-library",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
